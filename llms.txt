@@ -1,0 +1,39 @@
+# Coinray Strategy SDK
+
+> Coinray scripts are indicators and trading strategies written in AssemblyScript (a strict subset of TypeScript) against the `@coinray/strategy` SDK, compiled to WebAssembly. The same script draws on the chart, fires alerts on the server and runs in backtests.
+
+A script imports only `@coinray/strategy` (and the user's own modules, `@user/name`) and exports one function, `onBar()`. Top-level code runs once: declare inputs (`param.*`), plots, alerts and `request.*` contexts there. `NaN` is Pine's `na`; test it with `na(value)`.
+
+## Rules for writing a good script
+
+- `onBar()` runs once per closed bar (`isNewBar()` is true) and again on every tick of the forming bar (`isNewBar()` is false). Compute signals, alerts and orders on closed bars: `if (!isNewBar()) return;` before them.
+- Higher-timeframe and other-symbol series: `[1]` is the last closed bar, `[0]` repaints until that bar closes. Use `[1]` for signals.
+- Draw only when someone will see it. Backtests drop drawings, and `draw.enabled()` is then false. Put ALL drawing work behind it, including loops, id strings and builders, because arguments are built before a `draw.*` call returns:
+  `if (draw.enabled()) render();`
+  Keep detection, alerts and orders outside `render()`.
+- Give drawings that follow price a stable id and build the id once, when the object is created, not on every bar.
+- Draw once-per-chart summaries (tables, a "last signal" label) on the last bar only: `if (barstate.isLast())`.
+- Never read values back from drawings; keep what you need in your own variables.
+- Indicator lengths must be constant (from inputs). A new length every bar creates a new indicator and hits the 256-series limit.
+- `m.get(key)` on a Map traps when the key is absent: use `mapGet(m, key)`.
+- Format numbers with `toFixed(value, digits)`, not `Number.prototype.toFixed`.
+- Limits per bar: 50 million instructions, 250 ms, 16 MB, 64 alerts/orders/plots, 500 drawings. Backtests: 30 s per symbol, 200,000 bars, 100 symbols.
+
+## Guides
+
+- [Overview](https://coinrayio.github.io/strategy-docs/): what you can build and how it runs
+- [Getting started](https://coinrayio.github.io/strategy-docs/getting-started): the shape of a script, inputs, plots, modules, AssemblyScript differences
+- [The bar model](https://coinrayio.github.io/strategy-docs/bar-model): closed vs forming bars, series indexing, which state rolls back
+- [Indicators](https://coinrayio.github.io/strategy-docs/indicators): `ta.*`, multi-output indicators, crosses, fills, bar colours
+- [Multi-timeframe](https://coinrayio.github.io/strategy-docs/multi-timeframe): `request.timeframe`, `request.security` (other symbols and exchanges), `request.lowerTf`
+- [Drawing](https://coinrayio.github.io/strategy-docs/drawing): `draw.*`, builders, tables, and drawing only when it is seen
+- [Orders and backtesting](https://coinrayio.github.io/strategy-docs/orders-and-backtesting): order groups, exits, the account, backtest defaults and fill rules
+- [Alerts](https://coinrayio.github.io/strategy-docs/alerts): `declareAlert`, message placeholders, order fill alerts
+- [Exchange data](https://coinrayio.github.io/strategy-docs/exchange-data): order flow, CVD, funding and open interest
+- [Limits](https://coinrayio.github.io/strategy-docs/limits): sandbox budgets and common causes of a stopped script
+- [Porting from Pine Script](https://coinrayio.github.io/strategy-docs/porting-from-pine): name-by-name mapping
+- [Examples](https://coinrayio.github.io/strategy-docs/examples): complete scripts
+
+## Reference
+
+- [API reference](https://coinrayio.github.io/strategy-docs/api): every function, class and enum, generated from the SDK
